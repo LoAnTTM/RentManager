@@ -1,0 +1,22 @@
+*.xlsx
+.env
+
+# Ignore Mac system files
+.DS_Store
+.vscode/
+node_modules/
+dist/
+build/
+*.log
+.idea/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+ENV/
+.venv/
+
