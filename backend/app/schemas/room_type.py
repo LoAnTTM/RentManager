@@ -1,10 +1,12 @@
 """
 RoomType schemas - Loại phòng
 """
-from pydantic import BaseModel
+
 from datetime import datetime
-from typing import Optional
 from decimal import Decimal
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class RoomTypeBase(BaseModel):
@@ -34,4 +36,3 @@ class RoomTypeResponse(RoomTypeBase):
 
     class Config:
         from_attributes = True
-

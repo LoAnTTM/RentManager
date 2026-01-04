@@ -1,41 +1,61 @@
 """
 Location model - Khu trọ
 """
-from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime
-from sqlalchemy.orm import relationship
+
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import DateTime, Integer, Numeric, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.expense import Expense
+    from app.models.room import Room
+    from app.models.room_type import RoomType
 
 
 class Location(Base):
     __tablename__ = "locations"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)  # Tên khu: "Khu A", "68 Nguyễn Viết Xuân"
-    address = Column(String(255))  # Địa chỉ
-    
-    # Thông tin chủ trọ
-    owner_name = Column(String(100))  # Tên chủ trọ
-    owner_phone = Column(String(50))  # SĐT chủ trọ
-    
-    # Giá điện nước
-    electric_price = Column(Numeric(10, 2), default=3500)  # Giá điện/kWh (VND)
-    water_price = Column(Numeric(10, 0), default=8000)  # Giá nước/m3 (VND)
-    
-    # Phí cố định hàng tháng (có thể để 0 nếu không thu)
-    garbage_fee = Column(Numeric(10, 0), default=30000)  # Tiền rác
-    wifi_fee = Column(Numeric(10, 0), default=0)  # Tiền wifi
-    tv_fee = Column(Numeric(10, 0), default=0)  # Tiền TV
-    laundry_fee = Column(Numeric(10, 0), default=0)  # Tiền giặt
-    
-    # Cấu hình
-    payment_due_day = Column(Integer, default=5)  # Hạn nộp tiền (ngày trong tháng)
-    
-    notes = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    rooms = relationship("Room", back_populates="location", cascade="all, delete-orphan")
-    room_types = relationship("RoomType", back_populates="location", cascade="all, delete-orphan")
-    expenses = relationship("Expense", back_populates="location", cascade="all, delete-orphan")
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(String(255))
+
+    owner_name: Mapped[Optional[str]] = mapped_column(String(100))
+    owner_phone: Mapped[Optional[str]] = mapped_column(String(50))
+
+    electric_price: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), default=3500
+    )
+    water_price: Mapped[Decimal] = mapped_column(Numeric(10, 0), default=8000)
+
+    garbage_fee: Mapped[Decimal] = mapped_column(Numeric(10, 0), default=30000)
+    wifi_fee: Mapped[Decimal] = mapped_column(Numeric(10, 0), default=0)
+    tv_fee: Mapped[Decimal] = mapped_column(Numeric(10, 0), default=0)
+    laundry_fee: Mapped[Decimal] = mapped_column(Numeric(10, 0), default=0)
+
+    payment_due_day: Mapped[int] = mapped_column(Integer, default=5)
+
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+
+    rooms: Mapped[list[Room]] = relationship(
+        "Room", back_populates="location", cascade="all, delete-orphan"
+    )
+    room_types: Mapped[list[RoomType]] = relationship(
+        "RoomType", back_populates="location", cascade="all, delete-orphan"
+    )
+    expenses: Mapped[list[Expense]] = relationship(
+        "Expense", back_populates="location", cascade="all, delete-orphan"
+    )

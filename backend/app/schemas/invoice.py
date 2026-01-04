@@ -1,15 +1,19 @@
 """
 Invoice schemas - Hóa đơn
 """
-from pydantic import BaseModel
-from datetime import datetime, date
-from typing import Optional, List
+
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Optional
+
+from pydantic import BaseModel
+
 from app.models.invoice import InvoiceStatus
 
 
 class InvoiceGenerate(BaseModel):
     """Schema để tạo hóa đơn tháng"""
+
     month: int
     year: int
     location_id: Optional[int] = None

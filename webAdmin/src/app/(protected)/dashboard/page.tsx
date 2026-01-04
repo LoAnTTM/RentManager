@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { dashboardAPI, invoicesAPI } from '@/lib/api';
 import { formatCurrency, getCurrentPeriod, getMonthName } from '@/lib/utils';
 import Loading from '@/components/Loading';
@@ -40,11 +40,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const { month, year } = getCurrentPeriod();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [statsRes, reportRes] = await Promise.all([
         dashboardAPI.getStats(),
@@ -57,7 +53,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleMarkPaid = async (invoiceId: number) => {
     try {
@@ -222,4 +222,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

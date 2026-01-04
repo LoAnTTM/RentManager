@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { roomsAPI, locationsAPI, roomTypesAPI } from '@/lib/api';
 import { formatCurrency, roomStatusLabels } from '@/lib/utils';
 import Loading from '@/components/Loading';
@@ -63,17 +63,13 @@ export default function RoomsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [filterLocation, filterStatus, filterRoomType]);
-
-  useEffect(() => {
     // Load room types when location changes
     if (formData.location_id) {
       loadRoomTypes(parseInt(formData.location_id));
     }
   }, [formData.location_id]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [roomsRes, locationsRes] = await Promise.all([
         roomsAPI.getAll({
@@ -90,7 +86,11 @@ export default function RoomsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterLocation, filterRoomType, filterStatus]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadRoomTypes = async (locationId: number) => {
     try {

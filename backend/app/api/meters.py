@@ -1,19 +1,24 @@
 """
 Meter API - Quản lý điện nước
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+
 from typing import List, Optional
-from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.meter import Meter, MeterReading, MeterType
 from app.models.room import Room
 from app.schemas.meter import (
-    MeterCreate, MeterReadingCreate, MeterReadingUpdate,
-    MeterResponse, MeterReadingResponse, MeterReadingBatch
+    MeterCreate,
+    MeterReadingBatch,
+    MeterReadingCreate,
+    MeterReadingResponse,
+    MeterReadingUpdate,
+    MeterResponse,
 )
-from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/meters", tags=["Điện nước"])
 
@@ -23,37 +28,42 @@ def get_meters(
     room_id: Optional[int] = Query(None, description="Lọc theo phòng"),
     meter_type: Optional[MeterType] = Query(None, description="Lọc theo loại"),
     db: Session = Depends(get_db),
-    _: None = Depends(get_current_user)
+    _: None = Depends(get_current_user),
 ):
     """Lấy danh sách đồng hồ"""
     query = db.query(Meter)
-    
+
     if room_id:
         query = query.filter(Meter.room_id == room_id)
     if meter_type:
         query = query.filter(Meter.meter_type == meter_type)
-    
+
     meters = query.all()
-    
+
     result = []
     for meter in meters:
         # Get latest reading
-        latest = db.query(MeterReading).filter(
-            MeterReading.meter_id == meter.id
-        ).order_by(MeterReading.year.desc(), MeterReading.month.desc()).first()
-        
+        latest = (
+            db.query(MeterReading)
+            .filter(MeterReading.meter_id == meter.id)
+            .order_by(MeterReading.year.desc(), MeterReading.month.desc())
+            .first()
+        )
+
         meter_data = MeterResponse.model_validate(meter)
         meter_data.latest_reading = latest.new_reading if latest else None
         result.append(meter_data)
-    
+
     return result
 
 
-@router.post("", response_model=MeterResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=MeterResponse, status_code=status.HTTP_201_CREATED
+)
 def create_meter(
     meter_in: MeterCreate,
     db: Session = Depends(get_db),
-    _: None = Depends(get_current_user)
+    _: None = Depends(get_current_user),
 ):
     """Thêm đồng hồ mới"""
     # Check room exists
@@ -63,23 +73,32 @@ def create_meter(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Không tìm thấy phòng",
         )
-    
+
     # Check if meter type already exists for room
-    existing = db.query(Meter).filter(
-        Meter.room_id == meter_in.room_id,
-        Meter.meter_type == meter_in.meter_type
-    ).first()
+    existing = (
+        db.query(Meter)
+        .filter(
+            Meter.room_id == meter_in.room_id,
+            Meter.meter_type == meter_in.meter_type,
+        )
+        .first()
+    )
     if existing:
+        existing_type = (
+            "điện"
+            if meter_in.meter_type == MeterType.ELECTRIC
+            else "nước"
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Phòng đã có đồng hồ {'điện' if meter_in.meter_type == MeterType.ELECTRIC else 'nước'}",
+            detail=f"Phòng đã có đồng hồ {existing_type}",
         )
-    
+
     meter = Meter(**meter_in.model_dump())
     db.add(meter)
     db.commit()
     db.refresh(meter)
-    
+
     return meter
 
 
@@ -90,11 +109,11 @@ def get_readings(
     room_id: Optional[int] = Query(None, description="Phòng"),
     meter_type: Optional[MeterType] = Query(None, description="Loại đồng hồ"),
     db: Session = Depends(get_db),
-    _: None = Depends(get_current_user)
+    _: None = Depends(get_current_user),
 ):
     """Lấy danh sách chỉ số"""
     query = db.query(MeterReading).join(Meter)
-    
+
     if month:
         query = query.filter(MeterReading.month == month)
     if year:
@@ -103,16 +122,22 @@ def get_readings(
         query = query.filter(Meter.room_id == room_id)
     if meter_type:
         query = query.filter(Meter.meter_type == meter_type)
-    
-    readings = query.order_by(MeterReading.year.desc(), MeterReading.month.desc()).all()
+
+    readings = query.order_by(
+        MeterReading.year.desc(), MeterReading.month.desc()
+    ).all()
     return readings
 
 
-@router.post("/readings", response_model=MeterReadingResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/readings",
+    response_model=MeterReadingResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_reading(
     reading_in: MeterReadingCreate,
     db: Session = Depends(get_db),
-    _: None = Depends(get_current_user)
+    _: None = Depends(get_current_user),
 ):
     """Ghi chỉ số mới"""
     # Check meter exists
@@ -122,19 +147,23 @@ def create_reading(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Không tìm thấy đồng hồ",
         )
-    
+
     # Check if reading for this month already exists
-    existing = db.query(MeterReading).filter(
-        MeterReading.meter_id == reading_in.meter_id,
-        MeterReading.month == reading_in.month,
-        MeterReading.year == reading_in.year
-    ).first()
+    existing = (
+        db.query(MeterReading)
+        .filter(
+            MeterReading.meter_id == reading_in.meter_id,
+            MeterReading.month == reading_in.month,
+            MeterReading.year == reading_in.year,
+        )
+        .first()
+    )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Đã có chỉ số cho tháng này",
         )
-    
+
     # Calculate consumption
     consumption = reading_in.new_reading - reading_in.old_reading
     if consumption < 0:
@@ -142,15 +171,12 @@ def create_reading(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Chỉ số mới phải lớn hơn chỉ số cũ",
         )
-    
-    reading = MeterReading(
-        **reading_in.model_dump(),
-        consumption=consumption
-    )
+
+    reading = MeterReading(**reading_in.model_dump(), consumption=consumption)
     db.add(reading)
     db.commit()
     db.refresh(reading)
-    
+
     return reading
 
 
@@ -158,30 +184,38 @@ def create_reading(
 def create_readings_batch(
     batch: MeterReadingBatch,
     db: Session = Depends(get_db),
-    _: None = Depends(get_current_user)
+    _: None = Depends(get_current_user),
 ):
     """Ghi chỉ số hàng loạt"""
     created = []
     errors = []
-    
+
     for item in batch.readings:
         # Find meter
-        meter = db.query(Meter).filter(
-            Meter.room_id == item.room_id,
-            Meter.meter_type == item.meter_type
-        ).first()
-        
+        meter = (
+            db.query(Meter)
+            .filter(
+                Meter.room_id == item.room_id,
+                Meter.meter_type == item.meter_type,
+            )
+            .first()
+        )
+
         if not meter:
             errors.append(f"Không tìm thấy đồng hồ cho phòng {item.room_id}")
             continue
-        
+
         # Check if reading exists
-        existing = db.query(MeterReading).filter(
-            MeterReading.meter_id == meter.id,
-            MeterReading.month == batch.month,
-            MeterReading.year == batch.year
-        ).first()
-        
+        existing = (
+            db.query(MeterReading)
+            .filter(
+                MeterReading.meter_id == meter.id,
+                MeterReading.month == batch.month,
+                MeterReading.year == batch.year,
+            )
+            .first()
+        )
+
         if existing:
             # Update existing
             existing.old_reading = item.old_reading
@@ -197,18 +231,18 @@ def create_readings_batch(
                 year=batch.year,
                 old_reading=item.old_reading,
                 new_reading=item.new_reading,
-                consumption=consumption
+                consumption=consumption,
             )
             db.add(reading)
             db.flush()
             created.append(reading.id)
-    
+
     db.commit()
-    
+
     return {
         "message": f"Đã ghi {len(created)} chỉ số",
         "created_ids": created,
-        "errors": errors
+        "errors": errors,
     }
 
 
@@ -217,25 +251,26 @@ def update_reading(
     reading_id: int,
     reading_in: MeterReadingUpdate,
     db: Session = Depends(get_db),
-    _: None = Depends(get_current_user)
+    _: None = Depends(get_current_user),
 ):
     """Cập nhật chỉ số"""
-    reading = db.query(MeterReading).filter(MeterReading.id == reading_id).first()
+    reading = (
+        db.query(MeterReading).filter(MeterReading.id == reading_id).first()
+    )
     if not reading:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Không tìm thấy chỉ số",
         )
-    
+
     update_data = reading_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(reading, field, value)
-    
+
     # Recalculate consumption
     reading.consumption = reading.new_reading - reading.old_reading
-    
+
     db.commit()
     db.refresh(reading)
-    
-    return reading
 
+    return reading

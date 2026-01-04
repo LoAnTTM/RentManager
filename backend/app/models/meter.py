@@ -1,11 +1,30 @@
 """
 Meter and MeterReading models - Đồng hồ điện nước
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum, Numeric
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from app.core.database import Base
+
+from __future__ import annotations
+
 import enum
+from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
+
+from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.room import Room
 
 
 class MeterType(str, enum.Enum):
@@ -15,32 +34,47 @@ class MeterType(str, enum.Enum):
 
 class Meter(Base):
     __tablename__ = "meters"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=False)
-    meter_type = Column(Enum(MeterType), nullable=False)  # Loại đồng hồ
-    meter_code = Column(String(50))  # Mã đồng hồ (nếu có)
-    notes = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-    room = relationship("Room", back_populates="meters")
-    readings = relationship("MeterReading", back_populates="meter", cascade="all, delete-orphan")
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    room_id: Mapped[int] = mapped_column(
+        ForeignKey("rooms.id"), nullable=False
+    )
+    meter_type: Mapped[MeterType] = mapped_column(
+        Enum(MeterType), nullable=False
+    )
+    meter_code: Mapped[Optional[str]] = mapped_column(String(50))
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    room: Mapped[Room] = relationship("Room", back_populates="meters")
+    readings: Mapped[list["MeterReading"]] = relationship(
+        "MeterReading", back_populates="meter", cascade="all, delete-orphan"
+    )
 
 
 class MeterReading(Base):
     __tablename__ = "meter_readings"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    meter_id = Column(Integer, ForeignKey("meters.id"), nullable=False)
-    month = Column(Integer, nullable=False)  # Tháng (1-12)
-    year = Column(Integer, nullable=False)  # Năm
-    old_reading = Column(Numeric(10, 2), nullable=False)  # Chỉ số cũ
-    new_reading = Column(Numeric(10, 2), nullable=False)  # Chỉ số mới
-    consumption = Column(Numeric(10, 2))  # Số tiêu thụ (tự tính)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    meter = relationship("Meter", back_populates="readings")
 
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    meter_id: Mapped[int] = mapped_column(
+        ForeignKey("meters.id"), nullable=False
+    )
+    month: Mapped[int] = mapped_column(Integer, nullable=False)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    old_reading: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False
+    )
+    new_reading: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False
+    )
+    consumption: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 2))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now()
+    )
+
+    meter: Mapped["Meter"] = relationship("Meter", back_populates="readings")

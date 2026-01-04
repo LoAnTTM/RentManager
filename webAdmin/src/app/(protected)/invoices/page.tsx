@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { invoicesAPI, locationsAPI } from '@/lib/api';
 import { formatCurrency, getCurrentPeriod, getMonthName, invoiceStatusLabels, feeLabels } from '@/lib/utils';
 import Loading from '@/components/Loading';
@@ -70,11 +70,7 @@ export default function InvoicesPage() {
   const [editAbsentModal, setEditAbsentModal] = useState<Invoice | null>(null);
   const [absentDays, setAbsentDays] = useState(0);
 
-  useEffect(() => {
-    loadData();
-  }, [month, year, filterLocation, filterStatus]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [invoicesRes, locationsRes] = await Promise.all([
         invoicesAPI.getAll({
@@ -92,7 +88,11 @@ export default function InvoicesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterLocation, filterStatus, month, year]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const changeMonth = (delta: number) => {
     let newMonth = month + delta;

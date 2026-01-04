@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { expensesAPI, locationsAPI } from '@/lib/api';
 import { formatCurrency, formatDate, getCurrentPeriod, getMonthName, expenseCategoryLabels } from '@/lib/utils';
 import Loading from '@/components/Loading';
@@ -51,11 +51,7 @@ export default function ExpensesPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [month, year]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [expensesRes, locationsRes] = await Promise.all([
         expensesAPI.getAll({ month, year }),
@@ -68,7 +64,11 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [month, year]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const changeMonth = (delta: number) => {
     let newMonth = month + delta;
@@ -407,4 +407,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-
