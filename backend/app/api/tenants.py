@@ -36,9 +36,7 @@ def get_tenants(
     return tenants
 
 
-@router.post(
-    "", response_model=TenantResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=TenantResponse, status_code=status.HTTP_201_CREATED)
 def create_tenant(
     tenant_in: TenantCreate,
     db: Session = Depends(get_db),
@@ -70,9 +68,7 @@ def create_tenant(
 
 @router.get("/{tenant_id}", response_model=TenantResponse)
 def get_tenant(
-    tenant_id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(get_current_user),
+    tenant_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
 ):
     """Lấy chi tiết người thuê"""
     tenant = (
@@ -115,9 +111,7 @@ def update_tenant(
 
     # If changing room, check new room exists
     if "room_id" in update_data and update_data["room_id"] != tenant.room_id:
-        new_room = (
-            db.query(Room).filter(Room.id == update_data["room_id"]).first()
-        )
+        new_room = db.query(Room).filter(Room.id == update_data["room_id"]).first()
         if not new_room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -132,7 +126,7 @@ def update_tenant(
             .filter(
                 Tenant.room_id == old_room.id,
                 Tenant.id != tenant_id,
-                Tenant.is_active.is_(True),
+                Tenant.is_active == True,
             )
             .count()
         )
@@ -176,9 +170,7 @@ def move_out_tenant(
     other_tenants = (
         db.query(Tenant)
         .filter(
-            Tenant.room_id == room.id,
-            Tenant.id != tenant_id,
-            Tenant.is_active.is_(True),
+            Tenant.room_id == room.id, Tenant.id != tenant_id, Tenant.is_active == True
         )
         .count()
     )
@@ -193,9 +185,7 @@ def move_out_tenant(
 
 @router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_tenant(
-    tenant_id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(get_current_user),
+    tenant_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
 ):
     """Xóa người thuê"""
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
@@ -216,7 +206,7 @@ def delete_tenant(
             .filter(
                 Tenant.room_id == room.id,
                 Tenant.id != tenant_id,
-                Tenant.is_active.is_(True),
+                Tenant.is_active == True,
             )
             .count()
         )

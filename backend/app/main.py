@@ -5,18 +5,8 @@ Minh Rental API - Main Application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import (
-    auth,
-    dashboard,
-    expenses,
-    invoices,
-    locations,
-    meters,
-    payments,
-    room_types,
-    rooms,
-    tenants,
-)
+from app.api import (auth, dashboard, expenses, invoices, locations, meters,
+                     payments, room_types, rooms, tenants)
 from app.core.config import settings
 from app.core.database import Base, engine
 

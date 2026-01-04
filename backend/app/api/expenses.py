@@ -2,6 +2,7 @@
 Expense API - Quản lý chi tiêu
 """
 
+from datetime import date
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,9 +19,7 @@ router = APIRouter(prefix="/expenses", tags=["Chi tiêu"])
 @router.get("", response_model=List[ExpenseResponse])
 def get_expenses(
     location_id: Optional[int] = Query(None, description="Lọc theo khu"),
-    category: Optional[ExpenseCategory] = Query(
-        None, description="Lọc theo loại"
-    ),
+    category: Optional[ExpenseCategory] = Query(None, description="Lọc theo loại"),
     month: Optional[int] = Query(None, description="Tháng"),
     year: Optional[int] = Query(None, description="Năm"),
     db: Session = Depends(get_db),
@@ -49,9 +48,7 @@ def get_expenses(
     return expenses
 
 
-@router.post(
-    "", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
 def create_expense(
     expense_in: ExpenseCreate,
     db: Session = Depends(get_db),
@@ -68,9 +65,7 @@ def create_expense(
 
 @router.get("/{expense_id}", response_model=ExpenseResponse)
 def get_expense(
-    expense_id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(get_current_user),
+    expense_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
 ):
     """Lấy chi tiết khoản chi"""
     expense = db.query(Expense).filter(Expense.id == expense_id).first()
@@ -111,9 +106,7 @@ def update_expense(
 
 @router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_expense(
-    expense_id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(get_current_user),
+    expense_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
 ):
     """Xóa khoản chi"""
     expense = db.query(Expense).filter(Expense.id == expense_id).first()

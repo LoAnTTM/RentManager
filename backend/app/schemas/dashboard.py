@@ -3,7 +3,7 @@ Dashboard schemas - Thống kê
 """
 
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 

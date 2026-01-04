@@ -7,18 +7,17 @@ from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import and_
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.invoice import Invoice, InvoiceStatus
+from app.models.location import Location
 from app.models.meter import Meter, MeterReading, MeterType
 from app.models.room import Room, RoomStatus
-from app.schemas.invoice import (
-    InvoiceGenerate,
-    InvoiceResponse,
-    InvoiceUpdate,
-)
+from app.schemas.invoice import (InvoiceCreate, InvoiceGenerate,
+                                 InvoiceResponse, InvoiceUpdate)
 
 router = APIRouter(prefix="/invoices", tags=["Hóa đơn"])
 
@@ -81,9 +80,7 @@ def generate_invoices(
     if invoice_gen.location_id:
         query = query.filter(Room.location_id == invoice_gen.location_id)
 
-    rooms = query.options(
-        joinedload(Room.location), joinedload(Room.room_type)
-    ).all()
+    rooms = query.options(joinedload(Room.location), joinedload(Room.room_type)).all()
 
     created = []
     skipped = []
@@ -120,10 +117,7 @@ def generate_invoices(
         # Electric
         electric_meter = (
             db.query(Meter)
-            .filter(
-                Meter.room_id == room.id,
-                Meter.meter_type == MeterType.ELECTRIC,
-            )
+            .filter(Meter.room_id == room.id, Meter.meter_type == MeterType.ELECTRIC)
             .first()
         )
         if electric_meter:
@@ -142,9 +136,7 @@ def generate_invoices(
         # Water
         water_meter = (
             db.query(Meter)
-            .filter(
-                Meter.room_id == room.id, Meter.meter_type == MeterType.WATER
-            )
+            .filter(Meter.room_id == room.id, Meter.meter_type == MeterType.WATER)
             .first()
         )
         if water_meter:
@@ -222,9 +214,7 @@ def generate_invoices(
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
 def get_invoice(
-    invoice_id: int,
-    db: Session = Depends(get_db),
-    _: None = Depends(get_current_user),
+    invoice_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
 ):
     """Lấy chi tiết hóa đơn"""
     invoice = (
@@ -364,9 +354,7 @@ def update_absent_days(
     # Get daily deduction from room type
     daily_deduction = Decimal("0")
     if invoice.room and invoice.room.room_type:
-        daily_deduction = invoice.room.room_type.daily_deduction or Decimal(
-            "0"
-        )
+        daily_deduction = invoice.room.room_type.daily_deduction or Decimal("0")
 
     invoice.absent_days = absent_days
     invoice.absent_deduction = daily_deduction * absent_days

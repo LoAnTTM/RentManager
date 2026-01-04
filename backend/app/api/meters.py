@@ -2,23 +2,20 @@
 Meter API - Quản lý điện nước
 """
 
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy import and_
+from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.meter import Meter, MeterReading, MeterType
 from app.models.room import Room
-from app.schemas.meter import (
-    MeterCreate,
-    MeterReadingBatch,
-    MeterReadingCreate,
-    MeterReadingResponse,
-    MeterReadingUpdate,
-    MeterResponse,
-)
+from app.schemas.meter import (MeterCreate, MeterReadingBatch,
+                               MeterReadingCreate, MeterReadingResponse,
+                               MeterReadingUpdate, MeterResponse)
 
 router = APIRouter(prefix="/meters", tags=["Điện nước"])
 
@@ -57,9 +54,7 @@ def get_meters(
     return result
 
 
-@router.post(
-    "", response_model=MeterResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=MeterResponse, status_code=status.HTTP_201_CREATED)
 def create_meter(
     meter_in: MeterCreate,
     db: Session = Depends(get_db),
@@ -78,20 +73,14 @@ def create_meter(
     existing = (
         db.query(Meter)
         .filter(
-            Meter.room_id == meter_in.room_id,
-            Meter.meter_type == meter_in.meter_type,
+            Meter.room_id == meter_in.room_id, Meter.meter_type == meter_in.meter_type
         )
         .first()
     )
     if existing:
-        existing_type = (
-            "điện"
-            if meter_in.meter_type == MeterType.ELECTRIC
-            else "nước"
-        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Phòng đã có đồng hồ {existing_type}",
+            detail=f"Phòng đã có đồng hồ {'điện' if meter_in.meter_type == MeterType.ELECTRIC else 'nước'}",
         )
 
     meter = Meter(**meter_in.model_dump())
@@ -123,9 +112,7 @@ def get_readings(
     if meter_type:
         query = query.filter(Meter.meter_type == meter_type)
 
-    readings = query.order_by(
-        MeterReading.year.desc(), MeterReading.month.desc()
-    ).all()
+    readings = query.order_by(MeterReading.year.desc(), MeterReading.month.desc()).all()
     return readings
 
 
@@ -194,10 +181,7 @@ def create_readings_batch(
         # Find meter
         meter = (
             db.query(Meter)
-            .filter(
-                Meter.room_id == item.room_id,
-                Meter.meter_type == item.meter_type,
-            )
+            .filter(Meter.room_id == item.room_id, Meter.meter_type == item.meter_type)
             .first()
         )
 
@@ -254,9 +238,7 @@ def update_reading(
     _: None = Depends(get_current_user),
 ):
     """Cập nhật chỉ số"""
-    reading = (
-        db.query(MeterReading).filter(MeterReading.id == reading_id).first()
-    )
+    reading = db.query(MeterReading).filter(MeterReading.id == reading_id).first()
     if not reading:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -4,6 +4,7 @@ Dashboard API - Thống kê tổng quan
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import extract, func
@@ -13,6 +14,7 @@ from app.api.deps import get_current_user
 from app.core.database import get_db
 from app.models.expense import Expense
 from app.models.invoice import Invoice, InvoiceStatus
+from app.models.location import Location
 from app.models.room import Room, RoomStatus
 from app.models.tenant import Tenant
 from app.schemas.dashboard import DashboardStats, MonthlyReport, UnpaidInvoice
@@ -31,15 +33,11 @@ def get_dashboard_stats(
 
     # Room stats
     total_rooms = db.query(Room).count()
-    occupied_rooms = (
-        db.query(Room).filter(Room.status == RoomStatus.OCCUPIED).count()
-    )
+    occupied_rooms = db.query(Room).filter(Room.status == RoomStatus.OCCUPIED).count()
     vacant_rooms = total_rooms - occupied_rooms
 
     # Tenant stats
-    total_tenants = (
-        db.query(Tenant).filter(Tenant.is_active.is_(True)).count()
-    )
+    total_tenants = db.query(Tenant).filter(Tenant.is_active == True).count()
 
     # Invoice stats for current month
     invoices_this_month = (
@@ -48,12 +46,8 @@ def get_dashboard_stats(
         .all()
     )
 
-    total_income = sum(inv.total for inv in invoices_this_month) or Decimal(
-        "0"
-    )
-    total_paid = sum(
-        inv.paid_amount for inv in invoices_this_month
-    ) or Decimal("0")
+    total_income = sum(inv.total for inv in invoices_this_month) or Decimal("0")
+    total_paid = sum(inv.paid_amount for inv in invoices_this_month) or Decimal("0")
     total_unpaid = total_income - total_paid
 
     # Expense stats for current month
