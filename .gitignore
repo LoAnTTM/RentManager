@@ -10,6 +10,12 @@ build/
 *.log
 .idea/
 
+# Next.js
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
 # Ignore Python cache files
 __pycache__/
 *.pyc
