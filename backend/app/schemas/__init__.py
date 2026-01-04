@@ -3,6 +3,7 @@ Pydantic schemas for API validation
 """
 from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
 from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse
+from app.schemas.room_type import RoomTypeCreate, RoomTypeUpdate, RoomTypeResponse
 from app.schemas.room import RoomCreate, RoomUpdate, RoomResponse, RoomWithDetails
 from app.schemas.tenant import TenantCreate, TenantUpdate, TenantResponse
 from app.schemas.meter import MeterCreate, MeterReadingCreate, MeterReadingUpdate, MeterResponse, MeterReadingResponse
@@ -14,6 +15,7 @@ from app.schemas.dashboard import DashboardStats, MonthlyReport
 __all__ = [
     "UserCreate", "UserLogin", "UserResponse", "Token",
     "LocationCreate", "LocationUpdate", "LocationResponse",
+    "RoomTypeCreate", "RoomTypeUpdate", "RoomTypeResponse",
     "RoomCreate", "RoomUpdate", "RoomResponse", "RoomWithDetails",
     "TenantCreate", "TenantUpdate", "TenantResponse",
     "MeterCreate", "MeterReadingCreate", "MeterReadingUpdate", "MeterResponse", "MeterReadingResponse",
@@ -22,4 +24,3 @@ __all__ = [
     "ExpenseCreate", "ExpenseUpdate", "ExpenseResponse",
     "DashboardStats", "MonthlyReport"
 ]
-

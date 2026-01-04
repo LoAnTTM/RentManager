@@ -70,3 +70,17 @@ export const meterTypeLabels: Record<string, string> = {
   water: 'Nước',
 };
 
+// Fee labels
+export const feeLabels: Record<string, string> = {
+  room_fee: 'Tiền phòng',
+  electric_fee: 'Tiền điện',
+  water_fee: 'Tiền nước',
+  garbage_fee: 'Tiền rác',
+  wifi_fee: 'Tiền wifi',
+  tv_fee: 'Tiền TV',
+  laundry_fee: 'Tiền giặt',
+  other_fee: 'Phí khác',
+  previous_debt: 'Nợ tháng trước',
+  previous_credit: 'Thừa tháng trước',
+  absent_deduction: 'Trừ ngày vắng',
+};

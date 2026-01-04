@@ -20,3 +20,6 @@ venv/
 ENV/
 .venv/
 
+
+/docs/
+workspace/env.example

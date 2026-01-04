@@ -1,0 +1,143 @@
+# Production Docker Compose
+# Usage: docker compose -f compose.prod.yml up -d
+
+services:
+  # ================================
+  # PostgreSQL Database
+  # ================================
+  db:
+    image: postgres:15-alpine
+    container_name: minh_rental_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-minh_rental}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Database password required}
+      POSTGRES_DB: ${DB_NAME:-minh_rental}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-minh_rental} -d ${DB_NAME:-minh_rental}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ================================
+  # FastAPI Backend
+  # ================================
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/your-org/minh-rental-backend:latest}
+    container_name: minh_rental_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-minh_rental}:${DB_PASSWORD}@db:5432/${DB_NAME:-minh_rental}
+      SECRET_KEY: ${SECRET_KEY:?Secret key required}
+      ENVIRONMENT: production
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://rental.example.com}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`api.${DOMAIN:-rental.example.com}`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+
+  # ================================
+  # Next.js Frontend
+  # ================================
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/your-org/minh-rental-frontend:latest}
+    container_name: minh_rental_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: ${API_URL:-https://api.rental.example.com/api/v1}
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-rental.example.com}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  # ================================
+  # Traefik Reverse Proxy (optional)
+  # ================================
+  traefik:
+    image: traefik:v3.0
+    container_name: minh_rental_proxy
+    restart: unless-stopped
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?ACME email required}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - internal
+
+  # ================================
+  # Database Backup (CronJob)
+  # ================================
+  backup:
+    image: postgres:15-alpine
+    container_name: minh_rental_backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USER:-minh_rental}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME:-minh_rental}
+    volumes:
+      - ./backups:/backups
+    entrypoint: |
+      /bin/sh -c "
+        while true; do
+          echo 'Starting backup...'
+          pg_dump -Fc > /backups/backup_$$(date +%Y%m%d_%H%M%S).dump
+          echo 'Backup completed!'
+          
+          # Keep only last 7 days of backups
+          find /backups -name '*.dump' -mtime +7 -delete
+          
+          # Sleep 24 hours
+          sleep 86400
+        done
+      "
+    networks:
+      - internal
+
+volumes:
+  postgres_data:
+  letsencrypt:
+
+networks:
+  internal:
+    driver: bridge
+

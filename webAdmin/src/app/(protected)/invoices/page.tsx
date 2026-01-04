@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { invoicesAPI, locationsAPI } from '@/lib/api';
-import { formatCurrency, getCurrentPeriod, getMonthName, invoiceStatusLabels } from '@/lib/utils';
+import { formatCurrency, getCurrentPeriod, getMonthName, invoiceStatusLabels, feeLabels } from '@/lib/utils';
 import Loading from '@/components/Loading';
 import EmptyState from '@/components/EmptyState';
 import Modal from '@/components/Modal';
@@ -15,6 +15,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Calendar,
+  Edit2,
 } from 'lucide-react';
 
 interface Location {
@@ -28,12 +30,24 @@ interface Invoice {
   month: number;
   year: number;
   room_fee: string;
+  absent_days: number;
+  absent_deduction: string;
   electric_fee: string;
   water_fee: string;
+  garbage_fee: string;
+  wifi_fee: string;
+  tv_fee: string;
+  laundry_fee: string;
   other_fee: string;
+  other_fee_note: string;
+  previous_debt: string;
+  previous_credit: string;
   total: string;
   paid_amount: string;
+  remaining_debt: string;
+  remaining_credit: string;
   status: 'unpaid' | 'partial' | 'paid';
+  payment_date: string | null;
   notes: string;
   room?: {
     id: number;
@@ -53,6 +67,8 @@ export default function InvoicesPage() {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [detailModal, setDetailModal] = useState<Invoice | null>(null);
+  const [editAbsentModal, setEditAbsentModal] = useState<Invoice | null>(null);
+  const [absentDays, setAbsentDays] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -113,14 +129,32 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleMarkPaid = async (invoice: Invoice) => {
+  const handlePay = async (invoice: Invoice) => {
     try {
-      await invoicesAPI.markPaid(invoice.id);
+      await invoicesAPI.pay(invoice.id);
       toast.success('Đã cập nhật trạng thái');
       loadData();
       setDetailModal(null);
     } catch (error) {
       toast.error('Không thể cập nhật');
+    }
+  };
+
+  const openEditAbsentModal = (invoice: Invoice) => {
+    setEditAbsentModal(invoice);
+    setAbsentDays(invoice.absent_days);
+  };
+
+  const handleUpdateAbsent = async () => {
+    if (!editAbsentModal) return;
+
+    try {
+      await invoicesAPI.updateAbsent(editAbsentModal.id, absentDays);
+      toast.success('Đã cập nhật ngày vắng');
+      loadData();
+      setEditAbsentModal(null);
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Có lỗi xảy ra');
     }
   };
 
@@ -253,56 +287,90 @@ export default function InvoicesPage() {
               <tr className="table-header">
                 <th className="table-cell rounded-tl-xl">Phòng</th>
                 <th className="table-cell text-right">Tiền phòng</th>
-                <th className="table-cell text-right">Tiền điện</th>
-                <th className="table-cell text-right">Tiền nước</th>
+                <th className="table-cell text-center">Vắng</th>
+                <th className="table-cell text-right">Điện</th>
+                <th className="table-cell text-right">Nước</th>
+                <th className="table-cell text-right">Phí khác</th>
                 <th className="table-cell text-right">Tổng</th>
                 <th className="table-cell text-center">Trạng thái</th>
                 <th className="table-cell text-center rounded-tr-xl">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-warm-50">
-                  <td className="table-cell">
-                    <p className="font-medium">Phòng {invoice.room?.room_code}</p>
-                  </td>
-                  <td className="table-cell text-right">
-                    {formatCurrency(invoice.room_fee)}
-                  </td>
-                  <td className="table-cell text-right">
-                    {formatCurrency(invoice.electric_fee)}
-                  </td>
-                  <td className="table-cell text-right">
-                    {formatCurrency(invoice.water_fee)}
-                  </td>
-                  <td className="table-cell text-right font-bold text-primary-600">
-                    {formatCurrency(invoice.total)}
-                  </td>
-                  <td className="table-cell text-center">
-                    <span className={`badge ${getStatusBadge(invoice.status)}`}>
-                      {invoiceStatusLabels[invoice.status]}
-                    </span>
-                  </td>
-                  <td className="table-cell text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setDetailModal(invoice)}
-                        className="px-3 py-1 text-sm bg-warm-100 hover:bg-warm-200 rounded-lg"
-                      >
-                        Chi tiết
-                      </button>
-                      {invoice.status !== 'paid' && (
-                        <button
-                          onClick={() => handleMarkPaid(invoice)}
-                          className="px-3 py-1 text-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg"
-                        >
-                          Thu tiền
-                        </button>
+              {invoices.map((invoice) => {
+                const roomFeeAfterDeduction = parseFloat(invoice.room_fee) - parseFloat(invoice.absent_deduction);
+                const otherFees = parseFloat(invoice.garbage_fee) + parseFloat(invoice.wifi_fee) + 
+                                 parseFloat(invoice.tv_fee) + parseFloat(invoice.laundry_fee) + 
+                                 parseFloat(invoice.other_fee);
+                
+                return (
+                  <tr key={invoice.id} className="hover:bg-warm-50">
+                    <td className="table-cell">
+                      <p className="font-medium">Phòng {invoice.room?.room_code}</p>
+                    </td>
+                    <td className="table-cell text-right">
+                      {parseFloat(invoice.absent_deduction) > 0 ? (
+                        <div>
+                          <span className="line-through text-gray-400 text-sm">
+                            {formatCurrency(invoice.room_fee)}
+                          </span>
+                          <br />
+                          <span>{formatCurrency(roomFeeAfterDeduction)}</span>
+                        </div>
+                      ) : (
+                        formatCurrency(invoice.room_fee)
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="table-cell text-center">
+                      <button
+                        onClick={() => openEditAbsentModal(invoice)}
+                        className={`px-2 py-1 rounded ${
+                          invoice.absent_days > 0 
+                            ? 'bg-amber-100 text-amber-700' 
+                            : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {invoice.absent_days} ngày
+                      </button>
+                    </td>
+                    <td className="table-cell text-right">
+                      {formatCurrency(invoice.electric_fee)}
+                    </td>
+                    <td className="table-cell text-right">
+                      {formatCurrency(invoice.water_fee)}
+                    </td>
+                    <td className="table-cell text-right">
+                      {formatCurrency(otherFees)}
+                    </td>
+                    <td className="table-cell text-right font-bold text-primary-600">
+                      {formatCurrency(invoice.total)}
+                    </td>
+                    <td className="table-cell text-center">
+                      <span className={`badge ${getStatusBadge(invoice.status)}`}>
+                        {invoiceStatusLabels[invoice.status]}
+                      </span>
+                    </td>
+                    <td className="table-cell text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setDetailModal(invoice)}
+                          className="px-3 py-1 text-sm bg-warm-100 hover:bg-warm-200 rounded-lg"
+                        >
+                          Chi tiết
+                        </button>
+                        {invoice.status !== 'paid' && (
+                          <button
+                            onClick={() => handlePay(invoice)}
+                            className="px-3 py-1 text-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg"
+                          >
+                            Thu tiền
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -313,6 +381,7 @@ export default function InvoicesPage() {
         isOpen={!!detailModal}
         onClose={() => setDetailModal(null)}
         title={`Hóa đơn phòng ${detailModal?.room?.room_code}`}
+        size="md"
       >
         {detailModal && (
           <div className="space-y-4">
@@ -323,31 +392,108 @@ export default function InvoicesPage() {
               </span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
+              {/* Room fee */}
               <div className="flex justify-between py-2 border-b border-warm-100">
                 <span className="text-gray-600">Tiền phòng</span>
                 <span className="font-medium">{formatCurrency(detailModal.room_fee)}</span>
               </div>
+              
+              {/* Absent deduction */}
+              {parseFloat(detailModal.absent_deduction) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100 text-amber-600">
+                  <span>Trừ {detailModal.absent_days} ngày vắng</span>
+                  <span>-{formatCurrency(detailModal.absent_deduction)}</span>
+                </div>
+              )}
+
+              {/* Electric */}
               <div className="flex justify-between py-2 border-b border-warm-100">
                 <span className="text-gray-600">Tiền điện</span>
                 <span className="font-medium">{formatCurrency(detailModal.electric_fee)}</span>
               </div>
+
+              {/* Water */}
               <div className="flex justify-between py-2 border-b border-warm-100">
                 <span className="text-gray-600">Tiền nước</span>
                 <span className="font-medium">{formatCurrency(detailModal.water_fee)}</span>
               </div>
+
+              {/* Fixed fees */}
+              {parseFloat(detailModal.garbage_fee) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100">
+                  <span className="text-gray-600">Tiền rác</span>
+                  <span className="font-medium">{formatCurrency(detailModal.garbage_fee)}</span>
+                </div>
+              )}
+              {parseFloat(detailModal.wifi_fee) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100">
+                  <span className="text-gray-600">Tiền wifi</span>
+                  <span className="font-medium">{formatCurrency(detailModal.wifi_fee)}</span>
+                </div>
+              )}
+              {parseFloat(detailModal.tv_fee) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100">
+                  <span className="text-gray-600">Tiền TV</span>
+                  <span className="font-medium">{formatCurrency(detailModal.tv_fee)}</span>
+                </div>
+              )}
+              {parseFloat(detailModal.laundry_fee) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100">
+                  <span className="text-gray-600">Tiền giặt</span>
+                  <span className="font-medium">{formatCurrency(detailModal.laundry_fee)}</span>
+                </div>
+              )}
               {parseFloat(detailModal.other_fee) > 0 && (
                 <div className="flex justify-between py-2 border-b border-warm-100">
-                  <span className="text-gray-600">Phí khác</span>
+                  <span className="text-gray-600">
+                    Phí khác {detailModal.other_fee_note && `(${detailModal.other_fee_note})`}
+                  </span>
                   <span className="font-medium">{formatCurrency(detailModal.other_fee)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-3 bg-primary-50 rounded-xl px-4">
+
+              {/* Previous debt/credit */}
+              {parseFloat(detailModal.previous_debt) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100 text-red-600">
+                  <span>Nợ tháng trước</span>
+                  <span>+{formatCurrency(detailModal.previous_debt)}</span>
+                </div>
+              )}
+              {parseFloat(detailModal.previous_credit) > 0 && (
+                <div className="flex justify-between py-2 border-b border-warm-100 text-emerald-600">
+                  <span>Thừa tháng trước</span>
+                  <span>-{formatCurrency(detailModal.previous_credit)}</span>
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="flex justify-between py-3 bg-primary-50 rounded-xl px-4 mt-4">
                 <span className="font-bold text-primary-700">TỔNG CỘNG</span>
                 <span className="font-bold text-primary-700 text-xl">
                   {formatCurrency(detailModal.total)}
                 </span>
               </div>
+
+              {/* Paid amount */}
+              {parseFloat(detailModal.paid_amount) > 0 && (
+                <div className="flex justify-between py-2">
+                  <span className="text-emerald-600">Đã nộp</span>
+                  <span className="font-medium text-emerald-600">
+                    {formatCurrency(detailModal.paid_amount)}
+                  </span>
+                </div>
+              )}
+
+              {/* Remaining */}
+              {parseFloat(detailModal.remaining_debt) > 0 && (
+                <div className="flex justify-between py-2">
+                  <span className="text-red-600 font-medium">Còn nợ</span>
+                  <span className="font-bold text-red-600">
+                    {formatCurrency(detailModal.remaining_debt)}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between p-4 bg-warm-50 rounded-xl">
@@ -357,9 +503,16 @@ export default function InvoicesPage() {
               </span>
             </div>
 
+            {detailModal.payment_date && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Calendar className="w-4 h-4" />
+                <span>Ngày nộp: {detailModal.payment_date}</span>
+              </div>
+            )}
+
             {detailModal.status !== 'paid' && (
               <button
-                onClick={() => handleMarkPaid(detailModal)}
+                onClick={() => handlePay(detailModal)}
                 className="w-full btn btn-success flex items-center justify-center gap-2"
               >
                 <CheckCircle className="w-5 h-5" />
@@ -369,7 +522,48 @@ export default function InvoicesPage() {
           </div>
         )}
       </Modal>
+
+      {/* Edit Absent Modal */}
+      <Modal
+        isOpen={!!editAbsentModal}
+        onClose={() => setEditAbsentModal(null)}
+        title={`Cập nhật ngày vắng - Phòng ${editAbsentModal?.room?.room_code}`}
+        size="sm"
+      >
+        {editAbsentModal && (
+          <div className="space-y-4">
+            <div>
+              <label className="label">Số ngày vắng/nghỉ</label>
+              <input
+                type="number"
+                value={absentDays}
+                onChange={(e) => setAbsentDays(parseInt(e.target.value) || 0)}
+                className="input"
+                min="0"
+                max="31"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Tiền trừ sẽ được tính tự động theo loại phòng
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditAbsentModal(null)}
+                className="flex-1 btn btn-secondary"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleUpdateAbsent}
+                className="flex-1 btn btn-primary"
+              >
+                Cập nhật
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
-

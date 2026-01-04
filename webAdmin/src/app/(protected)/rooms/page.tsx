@@ -1,17 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { roomsAPI, locationsAPI } from '@/lib/api';
+import { roomsAPI, locationsAPI, roomTypesAPI } from '@/lib/api';
 import { formatCurrency, roomStatusLabels } from '@/lib/utils';
 import Loading from '@/components/Loading';
 import EmptyState from '@/components/EmptyState';
 import Modal from '@/components/Modal';
 import toast from 'react-hot-toast';
-import { DoorOpen, Plus, Edit2, Trash2, Users, Building2 } from 'lucide-react';
+import { DoorOpen, Plus, Edit2, Trash2, Users, Building2, Tag } from 'lucide-react';
 
 interface Location {
   id: number;
   name: string;
+}
+
+interface RoomType {
+  id: number;
+  code: string;
+  name: string;
+  price: string;
+  daily_deduction: string;
 }
 
 interface Tenant {
@@ -24,24 +32,30 @@ interface Tenant {
 interface Room {
   id: number;
   location_id: number;
+  room_type_id: number | null;
   room_code: string;
-  price: string;
+  price: string | null;
   status: 'vacant' | 'occupied';
   notes: string;
+  effective_price: string;
   location?: { id: number; name: string };
+  room_type?: RoomType;
   tenants?: Tenant[];
 }
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterLocation, setFilterLocation] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
+  const [filterRoomType, setFilterRoomType] = useState<number | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [formData, setFormData] = useState({
     location_id: '',
+    room_type_id: '',
     room_code: '',
     price: '',
     notes: '',
@@ -50,13 +64,21 @@ export default function RoomsPage() {
 
   useEffect(() => {
     loadData();
-  }, [filterLocation, filterStatus]);
+  }, [filterLocation, filterStatus, filterRoomType]);
+
+  useEffect(() => {
+    // Load room types when location changes
+    if (formData.location_id) {
+      loadRoomTypes(parseInt(formData.location_id));
+    }
+  }, [formData.location_id]);
 
   const loadData = async () => {
     try {
       const [roomsRes, locationsRes] = await Promise.all([
         roomsAPI.getAll({
           location_id: filterLocation || undefined,
+          room_type_id: filterRoomType || undefined,
           status: filterStatus || undefined,
         }),
         locationsAPI.getAll(),
@@ -70,14 +92,28 @@ export default function RoomsPage() {
     }
   };
 
+  const loadRoomTypes = async (locationId: number) => {
+    try {
+      const res = await roomTypesAPI.getAll({ location_id: locationId });
+      setRoomTypes(res.data);
+    } catch (error) {
+      console.error('Error loading room types:', error);
+    }
+  };
+
   const openCreateModal = () => {
     setEditingRoom(null);
+    const defaultLocation = filterLocation || locations[0]?.id || '';
     setFormData({
-      location_id: locations[0]?.id?.toString() || '',
+      location_id: defaultLocation.toString(),
+      room_type_id: '',
       room_code: '',
-      price: '2000000',
+      price: '',
       notes: '',
     });
+    if (defaultLocation) {
+      loadRoomTypes(Number(defaultLocation));
+    }
     setModalOpen(true);
   };
 
@@ -85,16 +121,18 @@ export default function RoomsPage() {
     setEditingRoom(room);
     setFormData({
       location_id: room.location_id.toString(),
+      room_type_id: room.room_type_id?.toString() || '',
       room_code: room.room_code,
-      price: room.price,
+      price: room.price || '',
       notes: room.notes || '',
     });
+    loadRoomTypes(room.location_id);
     setModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.location_id || !formData.room_code || !formData.price) {
+    if (!formData.location_id || !formData.room_code) {
       toast.error('Vui lòng điền đầy đủ thông tin');
       return;
     }
@@ -102,13 +140,16 @@ export default function RoomsPage() {
     setSaving(true);
     try {
       const data = {
-        ...formData,
         location_id: parseInt(formData.location_id),
-        price: formData.price,
+        room_type_id: formData.room_type_id ? parseInt(formData.room_type_id) : null,
+        room_code: formData.room_code,
+        price: formData.price || null,
+        notes: formData.notes,
       };
 
       if (editingRoom) {
         await roomsAPI.update(editingRoom.id, {
+          room_type_id: data.room_type_id,
           room_code: data.room_code,
           price: data.price,
           notes: data.notes,
@@ -161,7 +202,10 @@ export default function RoomsPage() {
       <div className="flex flex-wrap gap-4">
         <select
           value={filterLocation || ''}
-          onChange={(e) => setFilterLocation(e.target.value ? parseInt(e.target.value) : null)}
+          onChange={(e) => {
+            setFilterLocation(e.target.value ? parseInt(e.target.value) : null);
+            setFilterRoomType(null);
+          }}
           className="input w-auto"
         >
           <option value="">Tất cả khu</option>
@@ -223,11 +267,25 @@ export default function RoomsPage() {
                 </span>
               </div>
 
+              {/* Room type */}
+              {room.room_type && (
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag className="w-4 h-4 text-gray-400" />
+                  <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-sm font-medium">
+                    Loại {room.room_type.code}
+                  </span>
+                  <span className="text-sm text-gray-500">{room.room_type.name}</span>
+                </div>
+              )}
+
               <div className="mb-4">
                 <p className="text-2xl font-bold text-primary-600">
-                  {formatCurrency(room.price)}
+                  {formatCurrency(room.effective_price || room.price || '0')}
                 </p>
                 <p className="text-sm text-gray-500">/tháng</p>
+                {room.price && room.room_type && (
+                  <p className="text-xs text-gray-400">(Giá riêng)</p>
+                )}
               </div>
 
               {room.tenants && room.tenants.length > 0 && (
@@ -276,7 +334,7 @@ export default function RoomsPage() {
               <label className="label">Khu trọ *</label>
               <select
                 value={formData.location_id}
-                onChange={(e) => setFormData({ ...formData, location_id: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, location_id: e.target.value, room_type_id: '' })}
                 className="input"
               >
                 <option value="">Chọn khu trọ</option>
@@ -290,24 +348,43 @@ export default function RoomsPage() {
           )}
 
           <div>
+            <label className="label">Loại phòng</label>
+            <select
+              value={formData.room_type_id}
+              onChange={(e) => setFormData({ ...formData, room_type_id: e.target.value })}
+              className="input"
+            >
+              <option value="">-- Không chọn --</option>
+              {roomTypes.map((rt) => (
+                <option key={rt.id} value={rt.id}>
+                  Loại {rt.code} - {formatCurrency(rt.price)}
+                </option>
+              ))}
+            </select>
+            <p className="text-sm text-gray-500 mt-1">
+              Chọn loại phòng để lấy giá tự động
+            </p>
+          </div>
+
+          <div>
             <label className="label">Mã phòng *</label>
             <input
               type="text"
               value={formData.room_code}
               onChange={(e) => setFormData({ ...formData, room_code: e.target.value })}
               className="input"
-              placeholder="VD: 101, 102, A01..."
+              placeholder="VD: 101, 102, số1..."
             />
           </div>
 
           <div>
-            <label className="label">Giá phòng (VND/tháng) *</label>
+            <label className="label">Giá riêng (nếu khác loại phòng)</label>
             <input
               type="number"
               value={formData.price}
               onChange={(e) => setFormData({ ...formData, price: e.target.value })}
               className="input"
-              placeholder="2000000"
+              placeholder="Để trống nếu dùng giá loại phòng"
             />
           </div>
 
@@ -342,4 +419,3 @@ export default function RoomsPage() {
     </div>
   );
 }
-

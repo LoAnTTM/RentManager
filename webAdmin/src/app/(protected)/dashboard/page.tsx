@@ -61,7 +61,7 @@ export default function DashboardPage() {
 
   const handleMarkPaid = async (invoiceId: number) => {
     try {
-      await invoicesAPI.markPaid(invoiceId);
+      await invoicesAPI.pay(invoiceId);
       toast.success('Đã cập nhật trạng thái');
       loadData();
     } catch (error) {

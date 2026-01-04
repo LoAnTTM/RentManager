@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 from typing import List, Optional
 from decimal import Decimal
+from datetime import date
 from app.core.database import get_db
 from app.models.invoice import Invoice, InvoiceStatus
 from app.models.room import Room, RoomStatus
@@ -15,6 +16,21 @@ from app.schemas.invoice import InvoiceCreate, InvoiceUpdate, InvoiceResponse, I
 from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/invoices", tags=["Hóa đơn"])
+
+
+def get_previous_invoice(db: Session, room_id: int, month: int, year: int) -> Optional[Invoice]:
+    """Lấy hóa đơn tháng trước"""
+    prev_month = month - 1
+    prev_year = year
+    if prev_month < 1:
+        prev_month = 12
+        prev_year -= 1
+    
+    return db.query(Invoice).filter(
+        Invoice.room_id == room_id,
+        Invoice.month == prev_month,
+        Invoice.year == prev_year
+    ).first()
 
 
 @router.get("", response_model=List[InvoiceResponse])
@@ -54,7 +70,10 @@ def generate_invoices(
     if invoice_gen.location_id:
         query = query.filter(Room.location_id == invoice_gen.location_id)
     
-    rooms = query.options(joinedload(Room.location)).all()
+    rooms = query.options(
+        joinedload(Room.location),
+        joinedload(Room.room_type)
+    ).all()
     
     created = []
     skipped = []
@@ -70,6 +89,11 @@ def generate_invoices(
         if existing:
             skipped.append(room.room_code)
             continue
+        
+        location = room.location
+        
+        # Calculate room fee
+        room_fee = room.price if room.price else (room.room_type.price if room.room_type else Decimal("0"))
         
         # Get meter readings for this month
         electric_fee = Decimal("0")
@@ -87,7 +111,7 @@ def generate_invoices(
                 MeterReading.year == invoice_gen.year
             ).first()
             if reading and reading.consumption:
-                electric_fee = reading.consumption * room.location.electric_price
+                electric_fee = reading.consumption * location.electric_price
         
         # Water
         water_meter = db.query(Meter).filter(
@@ -101,19 +125,52 @@ def generate_invoices(
                 MeterReading.year == invoice_gen.year
             ).first()
             if reading and reading.consumption:
-                water_fee = reading.consumption * room.location.water_price
+                water_fee = reading.consumption * location.water_price
+        
+        # Get previous invoice for debt/credit transfer
+        previous_debt = Decimal("0")
+        previous_credit = Decimal("0")
+        prev_invoice = get_previous_invoice(db, room.id, invoice_gen.month, invoice_gen.year)
+        if prev_invoice:
+            previous_debt = prev_invoice.remaining_debt or Decimal("0")
+            previous_credit = prev_invoice.remaining_credit or Decimal("0")
+        
+        # Fixed fees from location
+        garbage_fee = location.garbage_fee or Decimal("0")
+        wifi_fee = location.wifi_fee or Decimal("0")
+        tv_fee = location.tv_fee or Decimal("0")
+        laundry_fee = location.laundry_fee or Decimal("0")
+        
+        # Calculate total
+        total = (
+            room_fee +
+            electric_fee +
+            water_fee +
+            garbage_fee +
+            wifi_fee +
+            tv_fee +
+            laundry_fee +
+            previous_debt -
+            previous_credit
+        )
         
         # Create invoice
-        room_fee = room.price
-        total = room_fee + electric_fee + water_fee
-        
         invoice = Invoice(
             room_id=room.id,
             month=invoice_gen.month,
             year=invoice_gen.year,
             room_fee=room_fee,
+            absent_days=0,
+            absent_deduction=Decimal("0"),
             electric_fee=electric_fee,
             water_fee=water_fee,
+            garbage_fee=garbage_fee,
+            wifi_fee=wifi_fee,
+            tv_fee=tv_fee,
+            laundry_fee=laundry_fee,
+            other_fee=Decimal("0"),
+            previous_debt=previous_debt,
+            previous_credit=previous_credit,
             total=total
         )
         db.add(invoice)
@@ -166,7 +223,27 @@ def update_invoice(
         setattr(invoice, field, value)
     
     # Recalculate total
-    invoice.total = invoice.room_fee + invoice.electric_fee + invoice.water_fee + invoice.other_fee
+    room_after_deduction = invoice.room_fee - invoice.absent_deduction
+    invoice.total = (
+        room_after_deduction +
+        invoice.electric_fee +
+        invoice.water_fee +
+        invoice.garbage_fee +
+        invoice.wifi_fee +
+        invoice.tv_fee +
+        invoice.laundry_fee +
+        invoice.other_fee +
+        invoice.previous_debt -
+        invoice.previous_credit
+    )
+    
+    # Calculate remaining debt/credit
+    if invoice.paid_amount >= invoice.total:
+        invoice.remaining_credit = invoice.paid_amount - invoice.total
+        invoice.remaining_debt = Decimal("0")
+    else:
+        invoice.remaining_debt = invoice.total - invoice.paid_amount
+        invoice.remaining_credit = Decimal("0")
     
     db.commit()
     db.refresh(invoice)
@@ -175,12 +252,13 @@ def update_invoice(
 
 
 @router.put("/{invoice_id}/pay", response_model=InvoiceResponse)
-def mark_invoice_paid(
+def pay_invoice(
     invoice_id: int,
+    amount: Optional[Decimal] = Query(None, description="Số tiền nộp (nếu không có thì nộp đủ)"),
     db: Session = Depends(get_db),
     _: None = Depends(get_current_user)
 ):
-    """Đánh dấu đã thu tiền"""
+    """Thu tiền hóa đơn"""
     invoice = db.query(Invoice).options(joinedload(Invoice.room)).filter(Invoice.id == invoice_id).first()
     if not invoice:
         raise HTTPException(
@@ -188,11 +266,83 @@ def mark_invoice_paid(
             detail="Không tìm thấy hóa đơn",
         )
     
-    invoice.status = InvoiceStatus.PAID
-    invoice.paid_amount = invoice.total
+    # Default to full payment
+    pay_amount = amount if amount is not None else invoice.total
+    
+    invoice.paid_amount = invoice.paid_amount + pay_amount
+    invoice.payment_date = date.today()
+    
+    # Update status
+    if invoice.paid_amount >= invoice.total:
+        invoice.status = InvoiceStatus.PAID
+        invoice.remaining_credit = invoice.paid_amount - invoice.total
+        invoice.remaining_debt = Decimal("0")
+    elif invoice.paid_amount > 0:
+        invoice.status = InvoiceStatus.PARTIAL
+        invoice.remaining_debt = invoice.total - invoice.paid_amount
+        invoice.remaining_credit = Decimal("0")
     
     db.commit()
     db.refresh(invoice)
     
     return invoice
 
+
+@router.put("/{invoice_id}/absent", response_model=InvoiceResponse)
+def update_absent_days(
+    invoice_id: int,
+    absent_days: int = Query(..., description="Số ngày vắng"),
+    db: Session = Depends(get_db),
+    _: None = Depends(get_current_user)
+):
+    """Cập nhật số ngày vắng và tính tiền trừ"""
+    invoice = db.query(Invoice).options(
+        joinedload(Invoice.room).joinedload(Room.room_type)
+    ).filter(Invoice.id == invoice_id).first()
+    
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Không tìm thấy hóa đơn",
+        )
+    
+    # Get daily deduction from room type
+    daily_deduction = Decimal("0")
+    if invoice.room and invoice.room.room_type:
+        daily_deduction = invoice.room.room_type.daily_deduction or Decimal("0")
+    
+    invoice.absent_days = absent_days
+    invoice.absent_deduction = daily_deduction * absent_days
+    
+    # Recalculate total
+    room_after_deduction = invoice.room_fee - invoice.absent_deduction
+    invoice.total = (
+        room_after_deduction +
+        invoice.electric_fee +
+        invoice.water_fee +
+        invoice.garbage_fee +
+        invoice.wifi_fee +
+        invoice.tv_fee +
+        invoice.laundry_fee +
+        invoice.other_fee +
+        invoice.previous_debt -
+        invoice.previous_credit
+    )
+    
+    # Recalculate remaining
+    if invoice.paid_amount >= invoice.total:
+        invoice.remaining_credit = invoice.paid_amount - invoice.total
+        invoice.remaining_debt = Decimal("0")
+        invoice.status = InvoiceStatus.PAID
+    elif invoice.paid_amount > 0:
+        invoice.remaining_debt = invoice.total - invoice.paid_amount
+        invoice.remaining_credit = Decimal("0")
+        invoice.status = InvoiceStatus.PARTIAL
+    else:
+        invoice.remaining_debt = invoice.total
+        invoice.remaining_credit = Decimal("0")
+    
+    db.commit()
+    db.refresh(invoice)
+    
+    return invoice

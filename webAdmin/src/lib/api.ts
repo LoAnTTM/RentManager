@@ -59,9 +59,19 @@ export const locationsAPI = {
   delete: (id: number) => api.delete(`/locations/${id}`),
 };
 
+// Room Types
+export const roomTypesAPI = {
+  getAll: (params?: { location_id?: number }) =>
+    api.get('/room-types', { params }),
+  getOne: (id: number) => api.get(`/room-types/${id}`),
+  create: (data: any) => api.post('/room-types', data),
+  update: (id: number, data: any) => api.put(`/room-types/${id}`, data),
+  delete: (id: number) => api.delete(`/room-types/${id}`),
+};
+
 // Rooms
 export const roomsAPI = {
-  getAll: (params?: { location_id?: number; status?: string }) =>
+  getAll: (params?: { location_id?: number; room_type_id?: number; status?: string }) =>
     api.get('/rooms', { params }),
   getOne: (id: number) => api.get(`/rooms/${id}`),
   create: (data: any) => api.post('/rooms', data),
@@ -101,7 +111,10 @@ export const invoicesAPI = {
   generate: (data: { month: number; year: number; location_id?: number }) =>
     api.post('/invoices/generate', data),
   update: (id: number, data: any) => api.put(`/invoices/${id}`, data),
-  markPaid: (id: number) => api.put(`/invoices/${id}/pay`),
+  pay: (id: number, amount?: number) =>
+    api.put(`/invoices/${id}/pay`, null, { params: amount ? { amount } : {} }),
+  updateAbsent: (id: number, absent_days: number) =>
+    api.put(`/invoices/${id}/absent`, null, { params: { absent_days } }),
 };
 
 // Payments
@@ -122,4 +135,3 @@ export const expensesAPI = {
 };
 
 export default api;
-

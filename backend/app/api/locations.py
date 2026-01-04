@@ -2,12 +2,13 @@
 Location API - Quản lý khu trọ
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List
 from app.core.database import get_db
 from app.models.location import Location
 from app.models.room import Room, RoomStatus
+from app.models.room_type import RoomType
 from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse
 from app.api.deps import get_current_user
 
@@ -20,7 +21,7 @@ def get_locations(
     _: None = Depends(get_current_user)
 ):
     """Lấy danh sách khu trọ"""
-    locations = db.query(Location).all()
+    locations = db.query(Location).options(joinedload(Location.room_types)).all()
     
     result = []
     for loc in locations:
@@ -53,6 +54,7 @@ def create_location(
     loc_data = LocationResponse.model_validate(location)
     loc_data.room_count = 0
     loc_data.occupied_count = 0
+    loc_data.room_types = []
     return loc_data
 
 
@@ -63,7 +65,10 @@ def get_location(
     _: None = Depends(get_current_user)
 ):
     """Lấy chi tiết khu trọ"""
-    location = db.query(Location).filter(Location.id == location_id).first()
+    location = db.query(Location).options(
+        joinedload(Location.room_types)
+    ).filter(Location.id == location_id).first()
+    
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -90,7 +95,10 @@ def update_location(
     _: None = Depends(get_current_user)
 ):
     """Cập nhật khu trọ"""
-    location = db.query(Location).filter(Location.id == location_id).first()
+    location = db.query(Location).options(
+        joinedload(Location.room_types)
+    ).filter(Location.id == location_id).first()
+    
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -140,4 +148,3 @@ def delete_location(
     
     db.delete(location)
     db.commit()
-
