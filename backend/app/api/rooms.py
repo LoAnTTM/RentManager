@@ -14,8 +14,12 @@ from app.models.meter import Meter, MeterType
 from app.models.room import Room, RoomStatus
 from app.models.room_type import RoomType
 from app.models.tenant import Tenant
-from app.schemas.room import (RoomCreate, RoomResponse, RoomUpdate,
-                              RoomWithDetails)
+from app.schemas.room import (
+    RoomCreate,
+    RoomResponse,
+    RoomUpdate,
+    RoomWithDetails,
+)
 
 router = APIRouter(prefix="/rooms", tags=["Phòng trọ"])
 
@@ -23,14 +27,20 @@ router = APIRouter(prefix="/rooms", tags=["Phòng trọ"])
 @router.get("", response_model=List[RoomWithDetails])
 def get_rooms(
     location_id: Optional[int] = Query(None, description="Lọc theo khu trọ"),
-    room_type_id: Optional[int] = Query(None, description="Lọc theo loại phòng"),
-    status: Optional[RoomStatus] = Query(None, description="Lọc theo trạng thái"),
+    room_type_id: Optional[int] = Query(
+        None, description="Lọc theo loại phòng"
+    ),
+    status: Optional[RoomStatus] = Query(
+        None, description="Lọc theo trạng thái"
+    ),
     db: Session = Depends(get_db),
     _: None = Depends(get_current_user),
 ):
     """Lấy danh sách phòng"""
     query = db.query(Room).options(
-        joinedload(Room.location), joinedload(Room.room_type), joinedload(Room.tenants)
+        joinedload(Room.location),
+        joinedload(Room.room_type),
+        joinedload(Room.tenants),
     )
 
     if location_id:
@@ -58,7 +68,9 @@ def get_rooms(
     return result
 
 
-@router.post("", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=RoomResponse, status_code=status.HTTP_201_CREATED
+)
 def create_room(
     room_in: RoomCreate,
     db: Session = Depends(get_db),
@@ -66,7 +78,9 @@ def create_room(
 ):
     """Thêm phòng mới"""
     # Check location exists
-    location = db.query(Location).filter(Location.id == room_in.location_id).first()
+    location = (
+        db.query(Location).filter(Location.id == room_in.location_id).first()
+    )
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -93,7 +107,8 @@ def create_room(
     existing = (
         db.query(Room)
         .filter(
-            Room.location_id == room_in.location_id, Room.room_code == room_in.room_code
+            Room.location_id == room_in.location_id,
+            Room.room_code == room_in.room_code,
         )
         .first()
     )
@@ -129,7 +144,9 @@ def create_room(
 
 @router.get("/{room_id}", response_model=RoomWithDetails)
 def get_room(
-    room_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
+    room_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(get_current_user),
 ):
     """Lấy chi tiết phòng"""
     room = (
@@ -153,7 +170,9 @@ def get_room(
     room_data = RoomWithDetails.model_validate(room)
     room_data.tenants = active_tenants
     room_data.effective_price = (
-        room.price if room.price else (room.room_type.price if room.room_type else None)
+        room.price
+        if room.price
+        else (room.room_type.price if room.room_type else None)
     )
     return room_data
 
@@ -225,7 +244,9 @@ def update_room(
 
 @router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_room(
-    room_id: int, db: Session = Depends(get_db), _: None = Depends(get_current_user)
+    room_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(get_current_user),
 ):
     """Xóa phòng"""
     room = db.query(Room).filter(Room.id == room_id).first()

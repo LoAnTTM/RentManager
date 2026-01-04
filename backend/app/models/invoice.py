@@ -4,8 +4,17 @@ Invoice model - Hóa đơn
 
 import enum
 
-from sqlalchemy import (Column, Date, DateTime, Enum, ForeignKey, Integer,
-                        Numeric, String, Text)
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -46,13 +55,19 @@ class Invoice(Base):
     other_fee_note = Column(String(255))  # Ghi chú phí phụ thu
 
     # Nợ/thừa chuyển kỳ
-    previous_debt = Column(Numeric(12, 0), default=0)  # Nợ tháng trước (số dương)
-    previous_credit = Column(Numeric(12, 0), default=0)  # Thừa tháng trước (số dương)
+    previous_debt = Column(
+        Numeric(12, 0), default=0
+    )  # Nợ tháng trước (số dương)
+    previous_credit = Column(
+        Numeric(12, 0), default=0
+    )  # Thừa tháng trước (số dương)
 
     # Tổng và thanh toán
     total = Column(Numeric(12, 0), nullable=False)  # Tổng tiền phải nộp
     paid_amount = Column(Numeric(12, 0), default=0)  # Số tiền đã nộp
-    remaining_debt = Column(Numeric(12, 0), default=0)  # Nợ lại (chuyển sang tháng sau)
+    remaining_debt = Column(
+        Numeric(12, 0), default=0
+    )  # Nợ lại (chuyển sang tháng sau)
     remaining_credit = Column(
         Numeric(12, 0), default=0
     )  # Thừa lại (chuyển sang tháng sau)

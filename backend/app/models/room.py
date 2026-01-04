@@ -4,8 +4,16 @@ Room model - Phòng trọ
 
 import enum
 
-from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer, Numeric,
-                        String, Text)
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -25,7 +33,9 @@ class Room(Base):
     room_type_id = Column(
         Integer, ForeignKey("room_types.id")
     )  # Loại phòng (A, B, C...)
-    room_code = Column(String(20), nullable=False)  # Mã phòng: "101", "102", "số1"
+    room_code = Column(
+        String(20), nullable=False
+    )  # Mã phòng: "101", "102", "số1"
     price = Column(Numeric(10, 0))  # Giá phòng riêng (nếu khác loại phòng)
     status = Column(Enum(RoomStatus), default=RoomStatus.VACANT)
     notes = Column(Text)
@@ -38,7 +48,9 @@ class Room(Base):
     tenants = relationship(
         "Tenant", back_populates="room", cascade="all, delete-orphan"
     )
-    meters = relationship("Meter", back_populates="room", cascade="all, delete-orphan")
+    meters = relationship(
+        "Meter", back_populates="room", cascade="all, delete-orphan"
+    )
     invoices = relationship(
         "Invoice", back_populates="room", cascade="all, delete-orphan"
     )

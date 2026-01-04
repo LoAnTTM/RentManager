@@ -4,8 +4,16 @@ Meter and MeterReading models - Đồng hồ điện nước
 
 import enum
 
-from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer, Numeric,
-                        String, Text)
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 

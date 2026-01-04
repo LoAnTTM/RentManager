@@ -33,7 +33,9 @@ def get_payments(
     return payments
 
 
-@router.post("", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED
+)
 def create_payment(
     payment_in: PaymentCreate,
     db: Session = Depends(get_db),
@@ -41,7 +43,9 @@ def create_payment(
 ):
     """Ghi nhận thanh toán"""
     # Check invoice exists
-    invoice = db.query(Invoice).filter(Invoice.id == payment_in.invoice_id).first()
+    invoice = (
+        db.query(Invoice).filter(Invoice.id == payment_in.invoice_id).first()
+    )
     if not invoice:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

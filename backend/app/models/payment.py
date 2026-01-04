@@ -2,8 +2,15 @@
 Payment model - Thanh toán
 """
 
-from sqlalchemy import (Column, Date, DateTime, ForeignKey, Integer, Numeric,
-                        Text)
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 

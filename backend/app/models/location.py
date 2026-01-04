@@ -33,7 +33,9 @@ class Location(Base):
     laundry_fee = Column(Numeric(10, 0), default=0)  # Tiền giặt
 
     # Cấu hình
-    payment_due_day = Column(Integer, default=5)  # Hạn nộp tiền (ngày trong tháng)
+    payment_due_day = Column(
+        Integer, default=5
+    )  # Hạn nộp tiền (ngày trong tháng)
 
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

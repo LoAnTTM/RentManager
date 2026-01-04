@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.core.security import (create_access_token, get_password_hash,
-                               verify_password)
+from app.core.security import (
+    create_access_token,
+    get_password_hash,
+    verify_password,
+)
 from app.models.user import User
 from app.schemas.user import Token, UserCreate, UserLogin, UserResponse
 
@@ -20,7 +23,9 @@ def login(user_login: UserLogin, db: Session = Depends(get_db)):
     """Đăng nhập"""
     user = db.query(User).filter(User.email == user_login.email).first()
 
-    if not user or not verify_password(user_login.password, user.hashed_password):
+    if not user or not verify_password(
+        user_login.password, user.hashed_password
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email hoặc mật khẩu không đúng",
@@ -34,7 +39,9 @@ def login(user_login: UserLogin, db: Session = Depends(get_db)):
 
     access_token = create_access_token(data={"sub": str(user.id)})
 
-    return Token(access_token=access_token, user=UserResponse.model_validate(user))
+    return Token(
+        access_token=access_token, user=UserResponse.model_validate(user)
+    )
 
 
 @router.post("/register", response_model=UserResponse)

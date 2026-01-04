@@ -33,7 +33,9 @@ def get_dashboard_stats(
 
     # Room stats
     total_rooms = db.query(Room).count()
-    occupied_rooms = db.query(Room).filter(Room.status == RoomStatus.OCCUPIED).count()
+    occupied_rooms = (
+        db.query(Room).filter(Room.status == RoomStatus.OCCUPIED).count()
+    )
     vacant_rooms = total_rooms - occupied_rooms
 
     # Tenant stats
@@ -46,8 +48,12 @@ def get_dashboard_stats(
         .all()
     )
 
-    total_income = sum(inv.total for inv in invoices_this_month) or Decimal("0")
-    total_paid = sum(inv.paid_amount for inv in invoices_this_month) or Decimal("0")
+    total_income = sum(inv.total for inv in invoices_this_month) or Decimal(
+        "0"
+    )
+    total_paid = sum(
+        inv.paid_amount for inv in invoices_this_month
+    ) or Decimal("0")
     total_unpaid = total_income - total_paid
 
     # Expense stats for current month
