@@ -1,10 +1,12 @@
 """
 Location schemas - Khu trọ
 """
-from pydantic import BaseModel
+
 from datetime import datetime
-from typing import Optional, List
 from decimal import Decimal
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 
 class RoomTypeInLocation(BaseModel):

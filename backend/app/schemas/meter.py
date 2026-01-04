@@ -1,10 +1,13 @@
 """
 Meter schemas - Đồng hồ điện nước
 """
-from pydantic import BaseModel
+
 from datetime import datetime
-from typing import Optional, List
 from decimal import Decimal
+from typing import List, Optional
+
+from pydantic import BaseModel
+
 from app.models.meter import MeterType
 
 
@@ -66,4 +69,3 @@ class MeterResponse(BaseModel):
 
     class Config:
         from_attributes = True
-

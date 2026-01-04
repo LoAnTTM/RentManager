@@ -1,9 +1,11 @@
 """
 Tenant schemas - Người thuê
 """
-from pydantic import BaseModel
-from datetime import datetime, date
+
+from datetime import date, datetime
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 class TenantBase(BaseModel):
@@ -48,4 +50,3 @@ class TenantResponse(TenantBase):
 
     class Config:
         from_attributes = True
-

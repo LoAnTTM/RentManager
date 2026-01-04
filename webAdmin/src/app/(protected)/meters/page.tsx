@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { metersAPI, roomsAPI, locationsAPI } from '@/lib/api';
 import { formatNumber, getCurrentPeriod, getMonthName } from '@/lib/utils';
 import Loading from '@/components/Loading';
@@ -74,11 +74,7 @@ export default function MetersPage() {
     water_new: string;
   }>>({});
 
-  useEffect(() => {
-    loadData();
-  }, [month, year, filterLocation]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [locationsRes, roomsRes, metersRes, readingsRes] = await Promise.all([
@@ -123,7 +119,11 @@ export default function MetersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterLocation, month, year]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleInputChange = (roomId: number, field: string, value: string) => {
     setFormReadings((prev) => ({
@@ -370,11 +370,10 @@ export default function MetersPage() {
         <ul className="text-gray-600 space-y-1 list-disc list-inside">
           <li>Nhập chỉ số mới vào ô có viền màu</li>
           <li>Số tiêu thụ sẽ tự động tính</li>
-          <li>Nhấn "Lưu tất cả" để lưu toàn bộ chỉ số</li>
+          <li>Nhấn &quot;Lưu tất cả&quot; để lưu toàn bộ chỉ số</li>
           <li>Sau khi lưu, có thể tạo hóa đơn ở trang Hóa đơn</li>
         </ul>
       </div>
     </div>
   );
 }
-

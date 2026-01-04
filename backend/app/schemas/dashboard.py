@@ -1,9 +1,11 @@
 """
 Dashboard schemas - Thống kê
 """
-from pydantic import BaseModel
-from typing import List, Optional
+
 from decimal import Decimal
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 
 class DashboardStats(BaseModel):
@@ -35,4 +37,3 @@ class MonthlyReport(BaseModel):
     total_expense: Decimal = Decimal("0")
     net_income: Decimal = Decimal("0")
     unpaid_invoices: List[UnpaidInvoice] = []
-

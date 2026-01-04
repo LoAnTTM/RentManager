@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { tenantsAPI, roomsAPI } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import Loading from '@/components/Loading';
@@ -46,11 +46,7 @@ export default function TenantsPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [showInactive]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [tenantsRes, roomsRes] = await Promise.all([
         tenantsAPI.getAll({ is_active: showInactive ? undefined : true }),
@@ -63,7 +59,11 @@ export default function TenantsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showInactive]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const availableRooms = rooms.filter((r) => r.status === 'vacant');
 
@@ -358,4 +358,3 @@ export default function TenantsPage() {
     </div>
   );
 }
-

@@ -1,15 +1,16 @@
 """
 Database models
 """
-from app.models.user import User
-from app.models.location import Location
-from app.models.room_type import RoomType
-from app.models.room import Room
-from app.models.tenant import Tenant
-from app.models.meter import Meter, MeterReading
-from app.models.invoice import Invoice
-from app.models.payment import Payment
+
 from app.models.expense import Expense
+from app.models.invoice import Invoice
+from app.models.location import Location
+from app.models.meter import Meter, MeterReading
+from app.models.payment import Payment
+from app.models.room import Room
+from app.models.room_type import RoomType
+from app.models.tenant import Tenant
+from app.models.user import User
 
 __all__ = [
     "User",
@@ -21,5 +22,5 @@ __all__ = [
     "MeterReading",
     "Invoice",
     "Payment",
-    "Expense"
+    "Expense",
 ]

@@ -1,11 +1,24 @@
 """
 Expense model - Chi tiêu
 """
-from sqlalchemy import Column, Integer, String, Text, Numeric, DateTime, ForeignKey, Date, Enum
+
+import enum
+
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-import enum
 
 
 class ExpenseCategory(str, enum.Enum):
@@ -17,9 +30,11 @@ class ExpenseCategory(str, enum.Enum):
 
 class Expense(Base):
     __tablename__ = "expenses"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    location_id = Column(Integer, ForeignKey("locations.id"))  # Khu trọ (có thể null nếu chi chung)
+    location_id = Column(
+        Integer, ForeignKey("locations.id")
+    )  # Khu trọ (có thể null nếu chi chung)
     category = Column(Enum(ExpenseCategory), default=ExpenseCategory.OTHER)
     description = Column(String(255), nullable=False)  # Mô tả
     amount = Column(Numeric(12, 0), nullable=False)  # Số tiền
@@ -27,7 +42,6 @@ class Expense(Base):
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     location = relationship("Location", back_populates="expenses")
-
