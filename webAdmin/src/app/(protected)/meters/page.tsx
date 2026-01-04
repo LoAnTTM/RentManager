@@ -370,7 +370,7 @@ export default function MetersPage() {
         <ul className="text-gray-600 space-y-1 list-disc list-inside">
           <li>Nhập chỉ số mới vào ô có viền màu</li>
           <li>Số tiêu thụ sẽ tự động tính</li>
-          <li>Nhấn "Lưu tất cả" để lưu toàn bộ chỉ số</li>
+          <li>Nhấn &quot;Lưu tất cả&quot; để lưu toàn bộ chỉ số</li>
           <li>Sau khi lưu, có thể tạo hóa đơn ở trang Hóa đơn</li>
         </ul>
       </div>

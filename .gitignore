@@ -23,3 +23,9 @@ ENV/
 
 /docs/
 workspace/env.example
+
+# Ignore next build files
+.next/
+out/
+webAdmin/tsconfig.tsbuildinfo
+webAdmin/next-env.d.ts

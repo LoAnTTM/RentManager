@@ -1,11 +1,14 @@
 """
 Minh Rental API - Main Application
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import (auth, dashboard, expenses, invoices, locations, meters,
+                     payments, room_types, rooms, tenants)
 from app.core.config import settings
-from app.core.database import engine, Base
-from app.api import auth, locations, room_types, rooms, tenants, meters, invoices, payments, expenses, dashboard
+from app.core.database import Base, engine
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -16,7 +19,7 @@ app = FastAPI(
     version=settings.APP_VERSION,
     description="API quản lý nhà trọ Cô Minh - 68 Nguyễn Viết Xuân",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS middleware
@@ -47,7 +50,7 @@ def root():
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
-        "status": "running"
+        "status": "running",
     }
 
 

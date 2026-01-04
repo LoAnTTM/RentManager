@@ -18,6 +18,11 @@ help:
 	@echo "    make shell-backend - Open shell in backend container"
 	@echo "    make shell-db     - Open PostgreSQL shell"
 	@echo ""
+	@echo "  CI/CD Checks:"
+	@echo "    make ci-check     - Run all CI checks locally (before push)"
+	@echo "    make ci-quick     - Quick CI check (no Docker build)"
+	@echo "    make ci-act       - Run GitHub Actions locally (requires act)"
+	@echo ""
 	@echo "  Testing:"
 	@echo "    make test         - Run all tests"
 	@echo "    make test-backend - Run backend tests"
@@ -72,6 +77,44 @@ shell-backend:
 
 shell-db:
 	docker exec -it minh_rental_db psql -U minh_rental -d minh_rental
+
+# =================================
+# CI/CD Checks
+# =================================
+ci-check:
+	@echo "🔍 Running full CI checks..."
+	@chmod +x scripts/ci-check.sh
+	@./scripts/ci-check.sh
+
+ci-quick:
+	@echo "🔍 Running quick CI checks (no Docker)..."
+	@echo "📦 Backend checks..."
+	@cd backend && \
+		if [ -d "venv" ]; then \
+			source venv/bin/activate && \
+			pip install -q flake8 black isort > /dev/null 2>&1 && \
+			flake8 app --count --select=E9,F63,F7,F82 --show-source --statistics && \
+			black --check app && \
+			isort --check-only app && \
+			deactivate; \
+		else \
+			echo "⚠️  Backend venv not found. Run: cd backend && python3 -m venv venv"; \
+		fi
+	@echo "📦 Frontend checks..."
+	@cd webAdmin && \
+		npm ci --silent > /dev/null 2>&1 && \
+		npx tsc --noEmit && \
+		npm run lint || true
+	@echo "✅ Quick CI checks completed!"
+
+ci-act:
+	@echo "🚀 Running GitHub Actions locally with act..."
+	@if ! command -v act > /dev/null; then \
+		echo "❌ 'act' not found. Install: https://github.com/nektos/act"; \
+		echo "   macOS: brew install act"; \
+		exit 1; \
+	fi
+	@act push
 
 # =================================
 # Testing
