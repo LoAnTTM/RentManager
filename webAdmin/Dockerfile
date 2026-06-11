@@ -1,21 +1,34 @@
-# Frontend Dockerfile
-FROM node:20-alpine
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Copy application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Build app
 RUN npm run build
 
-# Expose port
+FROM node:20-alpine AS prod-deps
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/.next ./.next
+
 EXPOSE 3000
 
-# Run server
 CMD ["npm", "start"]
-

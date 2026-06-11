@@ -1,23 +1,78 @@
 version: 2
 
+# Purpose in this repo:
+# - keep security-related dependency updates enabled
+# - batch routine version bumps into a small number of reviewable PRs
+# - avoid one-branch-per-package churn
+
 updates:
-  # Python dependencies
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    pull-request-branch-name:
+      separator: "-"
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 7
+    groups:
+      backend-runtime:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      backend-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+      backend-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     commit-message:
       prefix: "deps(py):"
 
-  # Node.js dependencies
   - package-ecosystem: "npm"
     directory: "/webAdmin"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
+    pull-request-branch-name:
+      separator: "-"
+    cooldown:
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 7
+    groups:
+      frontend-runtime:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      frontend-dev-tools:
+        dependency-type: "development"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      frontend-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+      frontend-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
@@ -27,14 +82,28 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@types/react-dom"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
     commit-message:
       prefix: "deps(js):"
 
-  # Docker dependencies
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 1
+    pull-request-branch-name:
+      separator: "-"
+    groups:
+      backend-docker:
+        patterns:
+          - "*"
+      backend-docker-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     commit-message:
       prefix: "deps(docker):"
 
@@ -42,14 +111,34 @@ updates:
     directory: "/webAdmin"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 1
+    pull-request-branch-name:
+      separator: "-"
+    groups:
+      frontend-docker:
+        patterns:
+          - "*"
+      frontend-docker-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     commit-message:
       prefix: "deps(docker):"
 
-  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    pull-request-branch-name:
+      separator: "-"
+    groups:
+      ci-actions:
+        patterns:
+          - "*"
+      ci-actions-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     commit-message:
       prefix: "deps(actions):"
-
